@@ -13,12 +13,15 @@ void get_user_input() {
         write(STDOUT_FILENO, ANSI_CODE, 12);
         entry_flag = 1;
     }
+    printf("hello@hacker >");
 }
 
 void read_input (char command[], char *parameters[]) {
     get_user_input();
     char line[BUFSIZE];
-    int count = 0, i = 0, j = 0;
+    int count = 0;
+    int i = 0;
+    int j = 0;
     char *token, *array[100];
     while(1) {
         int c = fgetc( stdin );
@@ -32,30 +35,32 @@ void read_input (char command[], char *parameters[]) {
         token = strtok(NULL, "\n");
     }
     strcpy(command, array[0]); //first word is command
-    for(int j = 0; j < i; j++) {
+    for(j = 0; j < i; j++) {
         parameters[j] = array[j];
     }
     parameters[i] = NULL;
 }
 
 void repl_loop() {
+    char cmd[100];
     char command[100];
     char *parameters[20]; 
-    char cmd[100];
-    char *environment_varriable[] = { (char *) "PATH=/bin", 0 }; 
-    for( ; ; ) {
-        printf(">");
+    char *environment_var[] = { (char *) "PATH=/bin", 0 }; 
+    int status;
+    while(1) {
         read_input(command, parameters);
+        if( strcmp (command, "exit") == 0) {
+            return;
+        }
         if(fork() == 0) {
             strcpy(cmd, "/bin/");
             strcat(cmd, command);
-            // printf("cmd %s", cmd);
-            execve(cmd, parameters, environment_varriable);
+            status = execve(cmd, parameters, environment_var);
+            if(status == -1) {
+                printf("Invalid Command: %s\n", command);
+            }
         } else {
             wait(NULL);
-        }
-        if( strcmp (command, "exit") == 0) {
-            return;
         }
     }
 }
