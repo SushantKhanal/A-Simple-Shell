@@ -4,19 +4,20 @@
 #include <unistd.h>
 #include <string.h>
 
-void type_prompt() {
-    static int first_time = 1;
-    if(first_time) {
-        // const char* xxx = " \e[1;1H\e[2J";
-        const char* xxx = "\e[H\e[2J\e[3J";
-        write(STDOUT_FILENO, xxx, 12);
-        first_time = 0;
+#define BUFSIZE 1024
+
+void get_user_input() {
+    static int entry_flag = 0;
+    if(!entry_flag) {
+        const char* ANSI_CODE = "\e[H\e[2J\e[3J";
+        write(STDOUT_FILENO, ANSI_CODE, 12);
+        entry_flag = 1;
     }
-    printf(">");
 }
 
-void read_command (char command[], char *parameters[]) {
-    char line[1024];
+void read_input (char command[], char *parameters[]) {
+    get_user_input();
+    char line[BUFSIZE];
     int count = 0, i = 0, j = 0;
     char *token, *array[100];
     while(1) {
@@ -37,25 +38,29 @@ void read_command (char command[], char *parameters[]) {
     parameters[i] = NULL;
 }
 
-int main() {
-    char cmd[100], command[100];
-    char *parameters[20]; //array of pointers to hold the paramters
-    //we assume that all commands are in the directory /bin
-    char *envp[] = { (char *) "PATH=/bin", 0 }; //environment varriable
+void repl_loop() {
+    char command[100];
+    char *parameters[20]; 
+    char cmd[100];
+    char *environment_varriable[] = { (char *) "PATH=/bin", 0 }; 
     for( ; ; ) {
-        type_prompt();
-        read_command(command, parameters);
+        printf(">");
+        read_input(command, parameters);
         if(fork() == 0) {
             strcpy(cmd, "/bin/");
             strcat(cmd, command);
             // printf("cmd %s", cmd);
-            execve(cmd, parameters, envp);
+            execve(cmd, parameters, environment_varriable);
         } else {
             wait(NULL);
         }
         if( strcmp (command, "exit") == 0) {
-            break;
+            return;
         }
     }
-    return 0;
+}
+
+int main() {
+    repl_loop();
+    return EXIT_SUCCESS;
 }
