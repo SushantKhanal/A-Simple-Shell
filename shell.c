@@ -22,7 +22,7 @@ int builtin_cd(char **args) {
 int builtin_help(char **args) {
   int i;
   printf("Type commands and enter.\n");
-  printf("Built in commands:\n");
+  printf("\nBuilt in commands:\n");
   int lengthOfBuiltIns = sizeof(builtin_strings) / sizeof(char *);
   for (i = 0; i < lengthOfBuiltIns; i++) {
     printf("  %s\n", builtin_strings[i]);
@@ -38,15 +38,14 @@ int (*builtin_functions[]) (char **) = { &builtin_help, &builtin_cd, &builtin_ex
 
 char **get_user_input () {
     printf("hello@hacker >");
-    char *line = NULL;
-    ssize_t bufsize = 0; // have getline allocate a buffer for us
-
-    if (getline(&line, &bufsize, stdin) == -1){
+    char *input_line = NULL;
+    ssize_t bufsize = 0; 
+    if (getline(&input_line, &bufsize, stdin) == -1){
         if (feof(stdin)) {
-        exit(EXIT_SUCCESS);  // We recieved an EOF
+            exit(EXIT_SUCCESS);  
         } else  {
-        perror("readline");
-        exit(EXIT_FAILURE);
+            perror("readline");
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -60,7 +59,7 @@ char **get_user_input () {
         exit(EXIT_FAILURE);
     }
 
-    token = strtok(line, " \t\r\n\a");
+    token = strtok(input_line, " \t\r\n\a");
     while (token != NULL) {
         tokens[index] = token;
         index++;
@@ -80,7 +79,6 @@ char **get_user_input () {
 
 int executeArguments(char **arguments) {
     if (arguments[0] == NULL) {
-        // An empty command was entered.
         return 1;
     }
     int lengthOfBuiltIns = sizeof(builtin_strings) / sizeof(char *);
@@ -92,7 +90,8 @@ int executeArguments(char **arguments) {
     }
     if (fork() == 0) {
         if (execvp(arguments[0], arguments) == -1) {
-        perror("Error");
+            //execve(arguments[0], arguments, environment_var);
+          printf("Invalid Command: %s\n", arguments[0]);
         }
         exit(EXIT_FAILURE);
     } else {
@@ -101,7 +100,7 @@ int executeArguments(char **arguments) {
     return 1;
 }
 
-void repl_loop() {
+int main() {
     int status;
     do {
         char **arguments;
@@ -110,9 +109,5 @@ void repl_loop() {
         status = executeArguments(arguments);
         free(arguments);
     } while (status);
-}
-
-int main() {
-    repl_loop();
     return EXIT_SUCCESS;
 }
