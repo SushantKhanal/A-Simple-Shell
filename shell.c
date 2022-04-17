@@ -122,6 +122,8 @@ int executeArguments(char **arguments) {
 
 int executePipedArguments(char** arguments, char** pipedArguments) {
 	// 0 is read end, 1 is write end
+    const int PIPE_READ = 0;
+    const int PIPE_WRITE = 1;   
 	int pipefd[2];
 	pid_t p1, p2;
 
@@ -138,9 +140,9 @@ int executePipedArguments(char** arguments, char** pipedArguments) {
 
 	if (p1 == 0) { //child 1
         //close both end of pipes
-		close(pipefd[0]); //close "read" end of pipe
-		dup2(pipefd[1], STDOUT_FILENO); //Duplicate "write" end of pipe
-		close(pipefd[1]); //close "write" end of pipe
+		dup2(pipefd[PIPE_WRITE], STDOUT_FILENO); //Duplicate "write" end of pipe
+		close(pipefd[PIPE_READ]); 
+        close(pipefd[PIPE_WRITE]); //close "write" end of pipe
 		if (execvp(arguments[0], arguments) < 0) {
 			printf("Invalid Command: %s\n", arguments[0]);
 			exit(EXIT_FAILURE);
@@ -152,15 +154,17 @@ int executePipedArguments(char** arguments, char** pipedArguments) {
 			exit(EXIT_FAILURE);
 		}
 		if (p2 == 0) { //child 2
-			close(pipefd[1]); //close "write" end of pipe
-			dup2(pipefd[0], STDIN_FILENO); //Duplicate "read" end of pipe
-			close(pipefd[0]); //close "read" end of pipe
+        	dup2(pipefd[PIPE_READ], STDIN_FILENO); //Duplicate "read" end of pipe
+			close(pipefd[PIPE_WRITE]); //close "write" end of pipe
+			close(pipefd[PIPE_READ]); //close "read" end of pipe
 			if (execvp(pipedArguments[0], pipedArguments) < 0) {
 				printf("Invalid Command: %s\n", pipedArguments[0]);
 				exit(EXIT_FAILURE);
 			}
 		} else {
 			// parent executing, waiting for two children
+            close(pipefd[PIPE_WRITE]); //close "write" end of pipe
+			close(pipefd[PIPE_READ]); //close "read" end of pipe
 			wait(NULL);
 			wait(NULL);
 		}
