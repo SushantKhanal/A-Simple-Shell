@@ -36,20 +36,7 @@ int builtin_exit(char **args) {
 
 int (*builtin_functions[]) (char **) = { &builtin_help, &builtin_cd, &builtin_exit };
 
-char **get_user_input () {
-    printf("hello@hacker >");
-    char *input_line = NULL;
-    ssize_t bufsize = 0; 
-    if (getline(&input_line, &bufsize, stdin) == -1){
-        if (feof(stdin)) {
-            exit(EXIT_SUCCESS);  
-        } else  {
-            perror("readline");
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    //splitline
+char **process_input(char* input_line) {
     int bufsize2 = 64, index = 0;
     char **tokens = malloc(bufsize2 * sizeof(char*));
     char *token;
@@ -77,7 +64,40 @@ char **get_user_input () {
     return tokens;
 }
 
+void get_user_input (char*** inputArguments) {
+    printf("hello@hacker >");
+    char *input_line = NULL;
+    ssize_t bufsize = 0; 
+    if (getline(&input_line, &bufsize, stdin) == -1){
+        if (feof(stdin)) {
+            exit(EXIT_SUCCESS);  
+        } else  {
+            perror("readline");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    char* piped_input[2];
+    int i;
+	for (i = 0; i < 2; i++) {
+        //checking for pipes
+		piped_input[i] = strsep(&input_line, "|");
+		if (piped_input[i] == NULL)
+			break;
+	}
+    inputArguments[0] = process_input(piped_input[0]);
+
+    if (piped_input[1] == NULL) {
+        //no pipe
+        inputArguments[1] = NULL;
+    } else {
+        //yes pipe
+        inputArguments[1] = process_input(piped_input[1]);
+    }
+}
+
 int executeArguments(char **arguments) {
+    // char *environment_var[] = { (char *) "PATH=/bin", 0 }; 
     if (arguments[0] == NULL) {
         return 1;
     }
@@ -88,7 +108,7 @@ int executeArguments(char **arguments) {
             return (*builtin_functions[i])(arguments);
         }
     }
-    if (fork() == 0) {
+    if (fork() == 0) {        
         if (execvp(arguments[0], arguments) == -1) {
             //execve(arguments[0], arguments, environment_var);
           printf("Invalid Command: %s\n", arguments[0]);
@@ -100,14 +120,67 @@ int executeArguments(char **arguments) {
     return 1;
 }
 
+int executePipedArguments(char** arguments, char** pipedArguments) {
+	// 0 is read end, 1 is write end
+	int pipefd[2];
+	pid_t p1, p2;
+
+	if (pipe(pipefd) < 0) {
+		printf("\nError initializing pipe.\n");
+		exit(EXIT_FAILURE);;
+	}
+
+	p1 = fork();
+	if (p1 < 0) {
+		printf("\nError forking.\n");
+		exit(EXIT_FAILURE);;
+	}
+
+	if (p1 == 0) { //child 1
+        //close both end of pipes
+		close(pipefd[0]); //close "read" end of pipe
+		dup2(pipefd[1], STDOUT_FILENO); //Duplicate "write" end of pipe
+		close(pipefd[1]); //close "write" end of pipe
+		if (execvp(arguments[0], arguments) < 0) {
+			printf("Invalid Command: %s\n", arguments[0]);
+			exit(EXIT_FAILURE);
+		}
+	} else { //parent
+		p2 = fork();
+		if (p2 < 0) {
+			printf("\nError forking.\n");
+			exit(EXIT_FAILURE);
+		}
+		if (p2 == 0) { //child 2
+			close(pipefd[1]); //close "write" end of pipe
+			dup2(pipefd[0], STDIN_FILENO); //Duplicate "read" end of pipe
+			close(pipefd[0]); //close "read" end of pipe
+			if (execvp(pipedArguments[0], pipedArguments) < 0) {
+				printf("Invalid Command: %s\n", pipedArguments[0]);
+				exit(EXIT_FAILURE);
+			}
+		} else {
+			// parent executing, waiting for two children
+			wait(NULL);
+			wait(NULL);
+		}
+	}
+    return 1;
+}
+
 int main() {
     int status;
     do {
-        char **arguments;
-        arguments = get_user_input();
-        // char *environment_var[] = { (char *) "PATH=/bin", 0 }; 
-        status = executeArguments(arguments);
-        free(arguments);
+        char** inputArguments[2];
+        get_user_input(inputArguments);
+        if(inputArguments[1] == NULL) {
+            //no pipes
+            status = executeArguments(inputArguments[0]);
+        } else {
+            //pipes present
+            status = executePipedArguments(inputArguments[0], inputArguments[1]);
+        }
+        
     } while (status);
     return EXIT_SUCCESS;
 }
