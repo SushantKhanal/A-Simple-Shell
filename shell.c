@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define BUFSIZE 1024
+#define MAX_BUF 200
 
 char *builtin_strings[] = {"help", "cd", "exit" };
 
@@ -65,7 +66,9 @@ char **process_input(char* input_line) {
 }
 
 void get_user_input (char*** inputArguments) {
-    printf("hello@hacker >");
+    char currentDir[MAX_BUF];
+    getcwd(currentDir, MAX_BUF);
+    printf("%s@helloHacker > ", currentDir);
     char *input_line = NULL;
     ssize_t bufsize = 0; 
     if (getline(&input_line, &bufsize, stdin) == -1){
@@ -76,7 +79,6 @@ void get_user_input (char*** inputArguments) {
             exit(EXIT_FAILURE);
         }
     }
-
     char* piped_input[2];
     int i;
 	for (i = 0; i < 2; i++) {
@@ -86,7 +88,6 @@ void get_user_input (char*** inputArguments) {
 			break;
 	}
     inputArguments[0] = process_input(piped_input[0]);
-
     if (piped_input[1] == NULL) {
         //no pipe
         inputArguments[1] = NULL;
