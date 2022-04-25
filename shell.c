@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#define BUFSIZE1 200
+#define BUFSIZE1 200 
 
 char *builtin_strings[] = {"help", "cd", "exit" }; //user input commands for builtin functions
 
@@ -117,8 +117,8 @@ int executeArguments(char **arguments) {
         if (execvp(arguments[0], arguments) == -1) {
             //execve(arguments[0], arguments, environment_var);
           printf("Invalid Command: %s\n", arguments[0]);
+          exit(EXIT_FAILURE);
         }
-        exit(EXIT_FAILURE);
     } else {
         wait(NULL);
     }
